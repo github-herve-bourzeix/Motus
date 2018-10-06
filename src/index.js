@@ -12,15 +12,16 @@ const choisirMot = (max = 5) => {
 }
 
 const StyleLettre = {
-  width: '40px',
-  height: '60px',
-  fontSize: '45px',
+  width: '100px',
+  height: '100px',
+  fontSize: '80px',
   fontWeight: '500',
   textAlign: 'center',
   color: 'white',
   border: 'none',
-  marginLeft: '5px',
-  marginRight: '5px',
+  marginLeft: '10px',
+  marginRight: '10px',
+  marginBottom: '10px',
   background: 'grey',
   borderRadius: '10px'
 }
@@ -119,6 +120,7 @@ class App extends Component {
       motChoisi,
       motSaisi,
       resultat,
+      lettreMauvaises: [],
       partieGagnee: false
     }
   }
@@ -128,7 +130,7 @@ class App extends Component {
   }
 
   validerSaisie = () => {
-    const { nombreEssai, motChoisi, motSaisi } = this.state
+    const { nombreEssai, motChoisi, motSaisi, lettreMauvaises } = this.state
 
     const isLocaleEq = (x, y) => {
       return (
@@ -153,7 +155,7 @@ class App extends Component {
 
     console.info('lettreRestantes:', lettreRestantes)
 
-    const lettreInvalides = []
+    const lettreInvalides = [...lettreMauvaises]
     const z = motSaisi.reduce((result, lettre, index) => {
       if (monResultat[index]) {
         return result
@@ -178,10 +180,10 @@ class App extends Component {
           console.info('found an occurence in lettreRestantes=', result)
           result.splice(idxToRemove, 1)
           monResultat[index] = 2
-        } else {
-          if (!lettreInvalides.includes(lettre)) {
-            lettreInvalides.push(lettre)
-          }
+        }
+      } else {
+        if (!lettreInvalides.includes(lettre)) {
+          lettreInvalides.push(lettre)
         }
       }
       console.info('lettreRestantes=', result)
@@ -202,7 +204,7 @@ class App extends Component {
       partieGagnee,
       resultat: monResultat,
       nombreEssai: nombreEssai + 1,
-      lettreInvalides
+      lettreMauvaises: lettreInvalides
     })
   }
 
@@ -219,18 +221,37 @@ class App extends Component {
       motSaisi,
       resultat,
       nombreEssai,
+      lettreMauvaises,
       niveau
     } = this.state
+
+    console.info('lettreMauvaises', lettreMauvaises)
     return (
       <div className="App">
         <h1>
-          Nombre d'essai:{nombreEssai} {motChoisi}
+          Nombre d'essai:{nombreEssai} {lettreMauvaises}
         </h1>
         <input type="radio" value="facile" checked={niveau === 'facile'} />{' '}
         facile
         <input type="radio" value="facile" /> moyen
         <input type="radio" value="facile" /> cauchemar
         <h2>Essaye de trouver le mot!</h2>
+        <h2>
+          <MasqueDeSaisie
+            readOnly={true}
+            mot={lettreMauvaises.join('')}
+            saisie={lettreMauvaises.join('')}
+            maxLength="1"
+            value={lettreMauvaises.map(x => 0)}
+            style={Object.assign({}, StyleLettre, {
+              height: '30px',
+              width: '30px',
+              fontSize: '25px',
+              borderRadius: '90px',
+              backgroundColor: 'purple'
+            })}
+          />
+        </h2>
         {!partieGagnee && (
           <div>
             <MasqueDeSaisie
@@ -242,6 +263,7 @@ class App extends Component {
               onChange={this.gererChangement}
             />
             <input type="button" value="Valider" onClick={this.validerSaisie} />
+            <input type="button" value="Recommencer" onClick={this.restart} />
           </div>
         )}
         {partieGagnee && (
