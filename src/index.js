@@ -13,7 +13,7 @@ const choisirMot = (max = 5) => {
 
 const StyleLettre = {
   width: '40px',
-  height: '50px',
+  height: '60px',
   fontSize: '45px',
   fontWeight: '500',
   textAlign: 'center',
@@ -59,29 +59,32 @@ const MasqueDeSaisie = ({
         const currentRef = React.createRef()
 
         let newStyle = style
-        let isOk = value[index] === true
+        let isOk = value[index] === 1
 
         if (!isOk) {
           lettreRef.push(currentRef)
         }
-        if (value[index] === true) {
+        if (value[index] === 1) {
           newStyle = Object.assign({}, style, LettreOk)
-        } /*else if (value[index] === false && mot.includes(lettre)) {
+        } else if (value[index] === 2) {
           newStyle = Object.assign({}, style, LettreMalPlacee)
-        } */ else if (
-          value[index] === false
-        ) {
+        } else if (value[index] === 0) {
           newStyle = Object.assign({}, style, LettreKo)
         }
         return (
           <Lettre
             value={saisie[index]}
-            disabled={isOk}
+            readOnly={isOk}
             ref={currentRef}
             key={`${index}${lettre}`}
-            onFocus={() => currentRef.current.select()}
+            onFocus={() => {
+              if (!isOk) {
+                currentRef.current.select()
+              }
+            }}
             onChange={e => {
               onChange(index, e.target.value)
+
               const next =
                 lettreRef[(currentRefIndex + 1) % lettreRef.length].current
               next.focus()
@@ -108,7 +111,7 @@ class App extends Component {
     const motSaisi = []
     motSaisi[aideIndex] = motChoisi.split('')[aideIndex]
     const resultat = []
-    resultat[aideIndex] = true
+    resultat[aideIndex] = 1
 
     return {
       niveau: 'facile',
@@ -134,33 +137,9 @@ class App extends Component {
         }) === 0
       )
     }
-    const x = motSaisi.reduce(
-      ({ lettreSaisieRestantes, resultat }, lettre, index) => {
-        console.info(lettreSaisieRestantes, resultat)
-        if (isLocaleEq(motChoisi[index], lettre)) {
-          resultat[index] = 1
-          const indexOfLettre = lettreSaisieRestantes.indexOf(lettre)
-          lettreSaisieRestantes.splice(indexOfLettre, 1)
-        } else {
-          const indexNext = lettreSaisieRestantes.indexOf(lettre)
-          if (indexNext > 0 && !isLocaleEq(motSaisi[indexNext], lettre)) {
-            resultat[index] = 2
-            const indexOfLettre = lettreSaisieRestantes.indexOf(lettre)
-            lettreSaisieRestantes.splice(indexOfLettre, 1)
-          } else {
-            resultat[index] = 0
-          }
-        }
-        return {
-          lettreSaisieRestantes,
-          resultat
-        }
-      },
-      { lettreSaisieRestantes: _.clone(motSaisi), resultat: [] }
-    )
 
     const monResultat = motSaisi.reduce((result, lettre, index) => {
-      result[index] = isLocaleEq(motChoisi[index], lettre)
+      result[index] = isLocaleEq(motChoisi[index], lettre) ? 1 : 0
       return result
     }, [])
 
@@ -172,37 +151,45 @@ class App extends Component {
           console.info(lettre, index, monResultat[index]) || !monResultat[index]
       )
 
+    console.info('lettreRestantes:', lettreRestantes)
+
+    const lettreInvalides = []
     const z = motSaisi.reduce((result, lettre, index) => {
       if (monResultat[index]) {
         return result
       }
 
-      const hasOccurence = motChoisi
-        .split('')
-        .slice(index)
-        .some(x => isLocaleEq(x, lettre))
+      const hasOccurence = motChoisi.split('').some(x => isLocaleEq(x, lettre))
       console.info(
-        `hasOccurence=${hasOccurence} of ${lettre} within ${motSaisi.slice(
-          index
+        `hasOccurence=${hasOccurence} of ${lettre} within ${motChoisi.split(
+          ''
         )}`
       )
 
       if (hasOccurence) {
         console.info(`search for ${lettre} with ${result}`)
-        const idxToRemove = result.find(x => isLocaleEq(x, lettre))
-        if (idxToRemove > 0) {
+        const idxToRemove = result.findIndex(
+          x =>
+            console.info(`is ${x} === ${lettre}:${isLocaleEq(x, lettre)}`) ||
+            isLocaleEq(x, lettre)
+        )
+        console.info('idxToRemove', idxToRemove)
+        if (idxToRemove >= 0) {
           console.info('found an occurence in lettreRestantes=', result)
           result.splice(idxToRemove, 1)
+          monResultat[index] = 2
+        } else {
+          if (!lettreInvalides.includes(lettre)) {
+            lettreInvalides.push(lettre)
+          }
         }
       }
       console.info('lettreRestantes=', result)
       return result
     }, lettreRestantes)
 
-    console.info('z:', z)
-
     const partieGagnee =
-      monResultat.length === motChoisi.length && monResultat.every(x => x)
+      monResultat.length === motChoisi.length && monResultat.every(x => x === 1)
 
     const u = new SpeechSynthesisUtterance()
     u.text = partieGagnee ? 'Bravo' : 'presque, essaye encore'
@@ -214,7 +201,8 @@ class App extends Component {
     this.setState({
       partieGagnee,
       resultat: monResultat,
-      nombreEssai: nombreEssai + 1
+      nombreEssai: nombreEssai + 1,
+      lettreInvalides
     })
   }
 
@@ -235,7 +223,9 @@ class App extends Component {
     } = this.state
     return (
       <div className="App">
-        <h1>Nombre d'essai:{nombreEssai}</h1>
+        <h1>
+          Nombre d'essai:{nombreEssai} {motChoisi}
+        </h1>
         <input type="radio" value="facile" checked={niveau === 'facile'} />{' '}
         facile
         <input type="radio" value="facile" /> moyen
