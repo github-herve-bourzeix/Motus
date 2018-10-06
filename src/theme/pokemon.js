@@ -1,1 +1,11 @@
-export default ['pikatchu', 'pokeball']
+export default [
+  'pikatchu',
+  'pokeball',
+  'pokemon',
+  'energie',
+  'évolution',
+  'talent',
+  'type',
+  'alola',
+  'kalos',
+]

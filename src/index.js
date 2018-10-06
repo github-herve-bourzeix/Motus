@@ -6,8 +6,43 @@ import nombres from './theme/nombres'
 import pokemon from './theme/pokemon'
 import zelda from './theme/zelda'
 import _ from 'lodash'
+import styled, { css } from 'styled-components'
 
 import './styles.css'
+
+const Button = styled.button`
+  font-size:20px
+  border-radius: 3px;
+  padding: 0.25em 1em;
+  margin: 1em 1em;
+  background: black;
+  color: palevioletred;
+  border: 2px solid palevioletred;
+
+  ${props =>
+    props.primary &&
+    css`
+    text-transform:uppercase;
+    background: palevioletred;
+    color: white;
+  `}
+`
+
+const Header = styled(({ className, children }) => (
+  <div className={className}>
+    <span className="title">Motus</span>
+    {children}
+  </div>
+))`
+  padding:1em;
+  font-family:helvetica;
+  font-size:18px;
+  background-color:black;
+  color:white;
+  display:flex;
+  justify-content: space-between;
+  flex-direction:row;
+`
 
 const choisirMot = (max = 5, theme = 'Apolline') => {
   console.info('selected theme:', theme)
@@ -266,7 +301,6 @@ class MainBoard extends Component {
     console.info('lettreMauvaises', lettreMauvaises)
     return (
       <div className="App">
-        <input type="button" value="Configure" onClick={this.handleConfigure} />
         <h1>Nombre d'essai:{nombreEssai}</h1>
 
         <h2>Essaye de trouver le mot!</h2>
@@ -296,23 +330,20 @@ class MainBoard extends Component {
               value={resultat}
               onChange={this.gererChangement}
             />
-            <input
-              type="button"
-              value="Valider"
-              onClick={this.validerSaisie}
-              style={{
-                width: '200px',
-                lineHeight: '299px',
-                fontSize: '60px',
-                height: '200px',
-              }}
-            />
+            <Button primary onClick={this.validerSaisie}>
+              Valider
+            </Button>
+            <Button value="Configure" onClick={this.handleConfigure}>
+              Configurer
+            </Button>
           </div>
         )}
         {partieGagnee && (
           <div>
             <h3> Bravo! </h3>
-            <input type="button" value="Recommencer" onClick={this.restart} />
+            <Button primary onClick={this.restart}>
+              Recommencer
+            </Button>
           </div>
         )}
       </div>
@@ -403,11 +434,26 @@ class Settings extends Component {
           </select>
           <hr />
         </form>
-        <input type="button" value="ok" onClick={this.onSave} />
+        <Button primary type="button" value="ok" onClick={this.onSave}>
+          ok
+        </Button>
       </div>
     )
   }
 }
+
+const BackgroundApp = styled.div`
+    height:100vh;
+    background-image: linear-gradient(20deg,  rgb(218, 163, 87),rgb(219, 112, 147));
+    background-position-x: initial;
+    background-position-y: initial;
+    background-size: initial;
+    background-repeat-x: initial;
+    background-repeat-y: initial;
+    background-attachment: initial;
+    background-origin: initial;
+    background-clip: initial;
+    background-color: initial;`
 
 class App extends Component {
   state = {
@@ -430,8 +476,14 @@ class App extends Component {
   }
 
   render() {
+    const { theme, niveau } = this.state.configuration
     return (
-      <>
+      <BackgroundApp>
+        <Header>
+          {theme && <span>Theme:{theme}</span>}
+          {niveau && <span>Niveau:{niveau}</span>}
+          <span>Score 0</span>
+        </Header>
         <Dialog open={this.state.isSettingsDialogOpened}>
           <Settings onSave={this.handleOnSave} />
         </Dialog>
@@ -439,7 +491,7 @@ class App extends Component {
           onConfigure={this.handleConfigure}
           configuration={this.state.configuration}
         />
-      </>
+      </BackgroundApp>
     )
   }
 }
