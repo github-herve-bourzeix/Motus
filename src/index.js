@@ -8,41 +8,15 @@ import zelda from './theme/zelda'
 import _ from 'lodash'
 import styled, { css } from 'styled-components'
 
+import './GameBoard'
+
 import './styles.css'
 
-const Button = styled.button`
-  font-size:20px
-  border-radius: 3px;
-  padding: 0.25em 1em;
-  margin: 1em 1em;
-  background: black;
-  color: palevioletred;
-  border: 2px solid palevioletred;
-
-  ${props =>
-    props.primary &&
-    css`
-    text-transform:uppercase;
-    background: palevioletred;
-    color: white;
-  `}
-`
-
-const Header = styled(({ className, children }) => (
-  <div className={className}>
-    <span className="title">Motus</span>
-    {children}
-  </div>
-))`
-  padding:1em;
-  font-family:helvetica;
-  font-size:18px;
-  background-color:black;
-  color:white;
-  display:flex;
-  justify-content: space-between;
-  flex-direction:row;
-`
+import Button from './components/Button'
+import Header from './components/Header'
+import Dialog from './components/Dialog'
+import Settings from './Settings'
+import GradientBackground from './components/GradientBackground'
 
 const choisirMot = (max = 5, theme = 'Apolline') => {
   console.info('selected theme:', theme)
@@ -90,7 +64,6 @@ const LettreMalPlacee = {
 }
 
 // const Lettre = props => <input type="text" {...props} />
-
 const Lettre = React.forwardRef((props, ref) => (
   <input type="text" ref={ref} {...props} />
 ))
@@ -195,6 +168,7 @@ class MainBoard extends Component {
       resultat,
       lettreMauvaises: [],
       partieGagnee: false,
+      history: [],
     }
   }
 
@@ -214,9 +188,13 @@ class MainBoard extends Component {
     }
 
     const monResultat = motSaisi.reduce((result, lettre, index) => {
-      result[index] = isLocaleEq(motChoisi[index], lettre) ? 1 : 0
+      if (isLocaleEq(motChoisi[index], lettre)) {
+        result[index] = 1
+      }
       return result
     }, [])
+
+    const lettresOk = _.clone(monResultat)
 
     console.info('monResultat:', monResultat)
     const lettreRestantes = motChoisi
@@ -232,6 +210,8 @@ class MainBoard extends Component {
     const z = motSaisi.reduce((result, lettre, index) => {
       if (monResultat[index]) {
         return result
+      } else {
+        monResultat[index] = 0
       }
 
       const hasOccurence = motChoisi.split('').some(x => isLocaleEq(x, lettre))
@@ -273,12 +253,25 @@ class MainBoard extends Component {
 
     speechSynthesis.speak(u)
 
-    this.setState({
-      partieGagnee,
-      resultat: monResultat,
-      nombreEssai: nombreEssai + 1,
-      lettreMauvaises: lettreInvalides,
-    })
+    this.setState(
+      {
+        partieGagnee,
+        resultat: lettresOk,
+        nombreEssai: nombreEssai + 1,
+        lettreMauvaises: lettreInvalides,
+        history: [
+          {
+            motChoisi: _.clone(motChoisi),
+            motSaisi: _.clone(motSaisi),
+            resultat: _.clone(monResultat),
+          },
+          ...this.state.history,
+        ],
+      },
+      () => {
+        if (partieGagnee) this.props.onWin(nombreEssai, motChoisi.length)
+      }
+    )
   }
 
   gererChangement = (index, lettreSaisie) => {
@@ -296,169 +289,117 @@ class MainBoard extends Component {
       nombreEssai,
       lettreMauvaises,
       niveau,
+      history,
     } = this.state
 
     console.info('lettreMauvaises', lettreMauvaises)
     return (
-      <div className="App">
-        <h1>Nombre d'essai:{nombreEssai}</h1>
+      <div
+        className="App"
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'flex-starts',
+          overflow: 'scroll',
+          height: '100vh',
+          padding: '10px',
+        }}
+      >
+        <div>
+          <h2>Historique:{nombreEssai}</h2>
+          <ol>
+            {history.map(previous => (
+              <li>
+                <MasqueDeSaisie
+                  readOnly={true}
+                  mot={previous.motChoisi}
+                  saisie={previous.motSaisi}
+                  maxLength="1"
+                  value={previous.resultat}
+                  style={Object.assign({}, StyleLettre, {
+                    height: '15px',
+                    width: '15px',
+                    fontSize: '10px',
+                    borderRadius: '2px',
+                  })}
+                />
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+          }}
+        >
+          <h2>Essaye de trouver le mot!</h2>
+          {!partieGagnee && (
+            <div>
+              {history[0] && (
+                <MasqueDeSaisie
+                  readOnly={true}
+                  mot={history[0].motChoisi}
+                  saisie={history[0].motSaisi}
+                  maxLength="1"
+                  value={history[0].resultat}
+                  style={StyleLettre}
+                />
+              )}
 
-        <h2>Essaye de trouver le mot!</h2>
-        <h2>
-          <MasqueDeSaisie
-            readOnly={true}
-            mot={lettreMauvaises.join('')}
-            saisie={lettreMauvaises.join('')}
-            maxLength="1"
-            value={lettreMauvaises.map(x => 1)}
-            style={Object.assign({}, StyleLettre, {
-              height: '30px',
-              width: '30px',
-              fontSize: '25px',
-              borderRadius: '90px',
-              backgroundColor: 'purple',
-            })}
-          />
-        </h2>
-        {!partieGagnee && (
-          <div>
-            <MasqueDeSaisie
-              mot={motChoisi}
-              saisie={motSaisi}
-              maxLength="1"
-              style={StyleLettre}
-              value={resultat}
-              onChange={this.gererChangement}
-            />
-            <Button primary onClick={this.validerSaisie}>
-              Valider
-            </Button>
-            <Button value="Configure" onClick={this.handleConfigure}>
-              Configurer
-            </Button>
-          </div>
-        )}
-        {partieGagnee && (
-          <div>
-            <h3> Bravo! </h3>
-            <Button primary onClick={this.restart}>
-              Recommencer
-            </Button>
-          </div>
-        )}
+              <MasqueDeSaisie
+                mot={motChoisi}
+                saisie={motSaisi}
+                maxLength="1"
+                style={StyleLettre}
+                value={resultat}
+                onChange={this.gererChangement}
+              />
+              <h2>
+                <MasqueDeSaisie
+                  readOnly={true}
+                  mot={lettreMauvaises.join('')}
+                  saisie={lettreMauvaises.join('')}
+                  maxLength="1"
+                  value={lettreMauvaises.map(x => 1)}
+                  style={Object.assign({}, StyleLettre, {
+                    height: '30px',
+                    width: '30px',
+                    fontSize: '25px',
+                    borderRadius: '90px',
+                    backgroundColor: 'purple',
+                  })}
+                />
+              </h2>
+              <Button primary onClick={this.validerSaisie}>
+                Valider
+              </Button>
+              <Button value="Configure" onClick={this.handleConfigure}>
+                Configurer
+              </Button>
+            </div>
+          )}
+          {partieGagnee && (
+            <div>
+              <h3> Bravo! </h3>
+              <Button primary onClick={this.restart}>
+                Recommencer
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
 }
-
-const Dialog = ({ children, open = true }) => (
-  <div style={{ display: open ? '' : 'none' }}>
-    <div
-      style={{
-        position: 'absolute',
-        zIndex: 1,
-        height: '100vh',
-        width: '100vw',
-        opacity: '0.3',
-        backgroundColor: 'black',
-      }}
-    />
-    <div
-      style={{
-        position: 'absolute',
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 2,
-        width: '100vw',
-        height: '100vh',
-      }}
-    >
-      <div
-        style={{
-          justifyContent: 'center',
-          display: 'flex',
-          marginTop: 'auto',
-          marginBottom: 'auto',
-          width: '75vw',
-          background: 'white',
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  </div>
-)
-
-const Niveau = ({ name, ...props }) => (
-  <div
-    style={{
-      display: 'flex',
-      flexDirection: 'row',
-    }}
-  >
-    <input name="niveau" type="radio" defaultValue={name} {...props} />
-    <span style={{ marginLeft: '10px', marginBottom: '10px' }}>{name}</span>
-  </div>
-)
-
-class Settings extends Component {
-  onSave = () => {
-    const { onSave } = this.props
-    onSave({
-      niveau: this.formRef['niveau'].value,
-      theme: this.formRef['theme'].value,
-    })
-  }
-
-  render() {
-    return (
-      <div
-        style={{
-          padding: '20px',
-          fontFamily: 'helvetica',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <h2>Configure tes paramètres</h2>
-        <form ref={ref => (this.formRef = ref)}>
-          <Niveau name="facile" checked />
-          <Niveau name="moyen" />
-          <Niveau name="difficile" />
-          <h3>Choisie un thème:</h3>
-          <select name="theme" defaultValue="Apolline">
-            <option>Zelda</option>
-            <option>Pokemon</option>
-            <option>Les nombres</option>
-            <option>Apolline</option>
-          </select>
-          <hr />
-        </form>
-        <Button primary type="button" value="ok" onClick={this.onSave}>
-          ok
-        </Button>
-      </div>
-    )
-  }
-}
-
-const BackgroundApp = styled.div`
-    height:100vh;
-    background-image: linear-gradient(20deg,  rgb(218, 163, 87),rgb(219, 112, 147));
-    background-position-x: initial;
-    background-position-y: initial;
-    background-size: initial;
-    background-repeat-x: initial;
-    background-repeat-y: initial;
-    background-attachment: initial;
-    background-origin: initial;
-    background-clip: initial;
-    background-color: initial;`
 
 class App extends Component {
   state = {
     isSettingsDialogOpened: true,
     configuration: {},
+    score: 0,
   }
   handleOnSave = configuration => {
     console.info('configuration', configuration)
@@ -475,14 +416,23 @@ class App extends Component {
     })
   }
 
+  handleWin = (nombreEssai, tailleDuMot) => {
+    this.setState({
+      score: this.state.score + Math.max(1, tailleDuMot * 3 - nombreEssai),
+    })
+  }
+
   render() {
-    const { theme, niveau } = this.state.configuration
+    const {
+      configuration: { theme, niveau },
+      score,
+    } = this.state
     return (
-      <BackgroundApp>
+      <GradientBackground>
         <Header>
           {theme && <span>Theme:{theme}</span>}
           {niveau && <span>Niveau:{niveau}</span>}
-          <span>Score 0</span>
+          <span>Score {score}</span>
         </Header>
         <Dialog open={this.state.isSettingsDialogOpened}>
           <Settings onSave={this.handleOnSave} />
@@ -490,8 +440,9 @@ class App extends Component {
         <MainBoard
           onConfigure={this.handleConfigure}
           configuration={this.state.configuration}
+          onWin={this.handleWin}
         />
-      </BackgroundApp>
+      </GradientBackground>
     )
   }
 }
