@@ -1,12 +1,6 @@
 import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
-import words from './words'
-import apolline from './theme/apolline'
-import nombres from './theme/nombres'
-import pokemon from './theme/pokemon'
-import zelda from './theme/zelda'
 import _ from 'lodash'
-import styled, { css } from 'styled-components'
 
 import './GameBoard'
 
@@ -17,24 +11,9 @@ import Header from './components/Header'
 import Dialog from './components/Dialog'
 import Settings from './Settings'
 import GradientBackground from './components/GradientBackground'
+import chooseWord from "./theme/chooseWord"
+import MasqueDeSaisie from "./components/MasqueDeSaisie";
 
-const choisirMot = (max = 5, theme = 'Apolline') => {
-  console.info('selected theme:', theme)
-  let themeWords = words
-  if (theme === 'Apolline') {
-    themeWords = apolline
-  } else if (theme === 'Les nombres') {
-    themeWords = nombres
-  } else if (theme === 'Pokemon') {
-    themeWords = pokemon
-  } else if (theme === 'Zelda') {
-    themeWords = zelda
-  }
-
-  const filteredWords = themeWords.filter(word => word.length <= max)
-  const index = Math.floor(Math.random() * filteredWords.length)
-  return filteredWords[index]
-}
 
 const StyleLettre = {
   width: '100px',
@@ -68,62 +47,6 @@ const Lettre = React.forwardRef((props, ref) => (
   <input type="text" ref={ref} {...props} />
 ))
 
-const MasqueDeSaisie = ({
-  mot = 'pasdemot',
-  saisie = [],
-  value = [],
-  onChange,
-  style,
-  ...props
-}) => {
-  let lettreRef = []
-  return (
-    <div>
-      {mot.split('').map((lettre, index) => {
-        const currentRefIndex = lettreRef.length
-        const currentRef = React.createRef()
-
-        let newStyle = style
-        let isOk = value[index] === 1
-
-        if (!isOk) {
-          lettreRef.push(currentRef)
-        }
-        if (value[index] === 1) {
-          newStyle = Object.assign({}, style, LettreOk)
-        } else if (value[index] === 2) {
-          newStyle = Object.assign({}, style, LettreMalPlacee)
-        } else if (value[index] === 0) {
-          newStyle = Object.assign({}, style, LettreKo)
-        }
-        return (
-          <Lettre
-            value={saisie[index]}
-            readOnly={isOk}
-            ref={currentRef}
-            key={`${index}${lettre}`}
-            onFocus={() => {
-              if (!isOk) {
-                currentRef.current.select()
-              }
-            }}
-            onChange={e => {
-              onChange(index, e.target.value)
-
-              const next =
-                lettreRef[(currentRefIndex + 1) % lettreRef.length].current
-              next.focus()
-              next.select()
-            }}
-            style={newStyle}
-            {...props}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
 class MainBoard extends Component {
   constructor(props) {
     super(props)
@@ -153,7 +76,7 @@ class MainBoard extends Component {
   getInitialState(props) {
     const { niveau, theme } = (props || this.props).configuration
 
-    const motChoisi = choisirMot(this.getMaxLengthFromLevel(niveau), theme)
+    const motChoisi = chooseWord(this.getMaxLengthFromLevel(niveau), theme)
     const aideIndex = Math.floor(Math.random() * motChoisi.length)
     const motSaisi = []
     motSaisi[aideIndex] = motChoisi.split('')[aideIndex]
@@ -345,7 +268,12 @@ class MainBoard extends Component {
                   saisie={history[0].motSaisi}
                   maxLength="1"
                   value={history[0].resultat}
-                  style={StyleLettre}
+                  style={Object.assign({}, StyleLettre, {
+                      height: '75px',
+                      width: '75px',
+                      fontSize: '60px',
+                      borderRadius: '2px',
+                  })}
                 />
               )}
 
