@@ -11,9 +11,25 @@ import Header from './components/Header'
 import Dialog from './components/Dialog'
 import Settings from './Settings'
 import GradientBackground from './components/GradientBackground'
-import chooseWord from "./theme/chooseWord"
-import MasqueDeSaisie from "./components/MasqueDeSaisie";
+import chooseWord, { createGetNextWord } from './theme/chooseWord'
+import MasqueDeSaisie from './components/MasqueDeSaisie'
+import Speaker from './icons/Speaker'
 
+const lireTexte = (() => {
+  let isReading = false
+  const u = new SpeechSynthesisUtterance()
+  u.lang = 'fr-fr'
+  u.rate = 0.8
+
+  return text => {
+    speechSynthesis.cancel()
+    return new Promise(resolver => {
+      u.onend = resolver
+      u.text = text
+      speechSynthesis.speak(u)
+    })
+  }
+})()
 
 const StyleLettre = {
   width: '100px',
@@ -66,17 +82,35 @@ class MainBoard extends Component {
   }
 
   componentWillReceiveProps(props) {
-    this.setState(this.getInitialState(props))
+    if (!_.isEqual(this.props.configuration, props.configuration)) {
+      const {} = props.configuration
+      const { niveau, theme } = props.configuration
+      this.wordGenerator = createGetNextWord(
+        this.getMaxLengthFromLevel(niveau),
+        theme
+      )
+      this.setState(this.getInitialState(props))
+    }
   }
 
   handleConfigure = () => {
     this.props.onConfigure()
   }
 
-  getInitialState(props) {
-    const { niveau, theme } = (props || this.props).configuration
+  getNextWord = () => {
+    if (this.wordGenerator) {
+      return this.wordGenerator()
+    }
+    return null
+  }
 
-    const motChoisi = chooseWord(this.getMaxLengthFromLevel(niveau), theme)
+  getInitialState(props) {
+    let motChoisi = this.getNextWord()
+    let partieTerminee = false
+    if (motChoisi == null) {
+      partieTerminee = true
+      motChoisi = ''
+    }
     const aideIndex = Math.floor(Math.random() * motChoisi.length)
     const motSaisi = []
     motSaisi[aideIndex] = motChoisi.split('')[aideIndex]
@@ -91,8 +125,13 @@ class MainBoard extends Component {
       resultat,
       lettreMauvaises: [],
       partieGagnee: false,
+      partieTerminee,
       history: [],
     }
+  }
+
+  handleHelp = () => {
+    lireTexte(`le mot est: ${this.state.motChoisi}`)
   }
 
   restart = () => {
@@ -169,12 +208,11 @@ class MainBoard extends Component {
     const partieGagnee =
       monResultat.length === motChoisi.length && monResultat.every(x => x === 1)
 
-    const u = new SpeechSynthesisUtterance()
-    u.text = partieGagnee ? 'Bravo' : 'presque, essaye encore'
-    u.lang = 'fr-fr'
-    u.rate = 1.0
-
-    speechSynthesis.speak(u)
+    if (partieGagnee) {
+      lireTexte(`Bravo c'est trop stylé!!!`)
+    } else {
+      lireTexte(`presque, essaye encore le mot est: ${motChoisi}`)
+    }
 
     this.setState(
       {
@@ -206,6 +244,7 @@ class MainBoard extends Component {
   render = () => {
     const {
       partieGagnee,
+      partieTerminee,
       motChoisi,
       motSaisi,
       resultat,
@@ -269,10 +308,10 @@ class MainBoard extends Component {
                   maxLength="1"
                   value={history[0].resultat}
                   style={Object.assign({}, StyleLettre, {
-                      height: '75px',
-                      width: '75px',
-                      fontSize: '60px',
-                      borderRadius: '2px',
+                    height: '75px',
+                    width: '75px',
+                    fontSize: '60px',
+                    borderRadius: '2px',
                   })}
                 />
               )}
@@ -307,14 +346,22 @@ class MainBoard extends Component {
               <Button value="Configure" onClick={this.handleConfigure}>
                 Configurer
               </Button>
+
+              <Speaker onClick={this.handleHelp} />
             </div>
           )}
           {partieGagnee && (
             <div>
               <h3> Bravo! </h3>
               <Button primary onClick={this.restart}>
-                Recommencer
+                Mot suivant
               </Button>
+            </div>
+          )}
+
+          {partieTerminee && (
+            <div>
+              <h3> Le jeu est fini </h3>
             </div>
           )}
         </div>
